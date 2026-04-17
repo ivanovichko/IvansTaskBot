@@ -96,6 +96,9 @@
     const tg = window.Telegram?.WebApp;
     if (tg) tg.ready();
 
+    let n8nUrl = null;
+    fetch("/api/config").then(r => r.json()).then(c => { n8nUrl = c.n8n_webhook_url; });
+
     // Set today as default date
     const today = new Date().toISOString().split("T")[0];
     document.getElementById("due").value = today;
@@ -140,7 +143,7 @@
           showMsg("Task added!", "success");
           document.getElementById("desc").value = "";
           loadTasks();
-          fetch("https://ivk.app.n8n.cloud/webhook/4c90b4f7-ee30-434a-acd7-e5c07096e2f3", {
+          if (n8nUrl) fetch(n8nUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ taskdesc: desc, duedate: due }),

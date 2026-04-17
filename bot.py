@@ -12,6 +12,7 @@ load_dotenv()
 
 TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 WEBHOOK_URL = os.environ["WEBHOOK_URL"]
+N8N_WEBHOOK_URL = os.environ["N8N_WEBHOOK_URL"]
 PORT = int(os.environ.get("PORT", 8443))
 DB_PATH = "tasks.db"
 
@@ -51,6 +52,10 @@ def create_task(description, due_date):
 @app.route("/api/tasks", methods=["GET"])
 def api_get_tasks():
     return jsonify(get_tasks())
+
+@app.route("/api/config")
+def api_config():
+    return jsonify({"n8n_webhook_url": N8N_WEBHOOK_URL})
 
 @app.route("/api/tasks", methods=["POST"])
 def api_create_task():
