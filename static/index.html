@@ -96,8 +96,7 @@
     const tg = window.Telegram?.WebApp;
     if (tg) tg.ready();
 
-    let n8nUrl = null;
-    fetch("/api/config").then(r => r.json()).then(c => { n8nUrl = c.n8n_webhook_url; });
+    const configPromise = fetch("/api/config").then(r => r.json());
 
     // Set today as default date
     const today = new Date().toISOString().split("T")[0];
@@ -143,11 +142,13 @@
           showMsg("Task added!", "success");
           document.getElementById("desc").value = "";
           loadTasks();
-          if (n8nUrl) fetch(n8nUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ taskdesc: desc, duedate: due }),
-          }).catch(() => {});
+          configPromise.then(cfg => {
+            if (cfg.n8n_webhook_url) fetch(cfg.n8n_webhook_url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ taskdesc: desc, duedate: due }),
+            }).catch(() => {});
+          });
         } else {
           showMsg("Failed to add task.", "error");
         }
