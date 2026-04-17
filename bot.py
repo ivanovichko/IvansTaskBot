@@ -1,6 +1,6 @@
 import os
+import asyncio
 import sqlite3
-import json
 import threading
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory
@@ -20,6 +20,9 @@ PORT = int(os.environ.get("PORT", 8443))
 DB_PATH = "tasks.db"
 
 app = Flask(__name__, static_folder="static")
+
+# Persistent event loop running in a background thread
+_loop = asyncio.new_event_loop()
 
 
 # ── Database ──────────────────────────────────────────────────────────────────
@@ -85,7 +88,7 @@ telegram_app = Application.builder().token(TOKEN).build()
 @app.route("/webhook", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-    telegram_app.update_queue.put_nowait(update)
+    asyncio.run_coroutine_threadsafe(telegram_app.process_update(update), _loop)
     return "ok"
 
 
@@ -117,18 +120,17 @@ telegram_app.add_handler(CommandHandler("tasks", tasks_command))
 
 # ── Startup ───────────────────────────────────────────────────────────────────
 
-def run_bot():
-    import asyncio
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(_setup_webhook())
-
-async def _setup_webhook():
+async def _setup():
     await telegram_app.initialize()
     await telegram_app.bot.set_webhook(f"{WEBHOOK_URL}/webhook")
     await telegram_app.start()
 
+def _run_loop():
+    asyncio.set_event_loop(_loop)
+    _loop.run_until_complete(_setup())
+    _loop.run_forever()
+
 if __name__ == "__main__":
     init_db()
-    threading.Thread(target=run_bot, daemon=True).start()
+    threading.Thread(target=_run_loop, daemon=True).start()
     app.run(host="0.0.0.0", port=PORT)
