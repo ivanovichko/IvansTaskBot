@@ -140,6 +140,11 @@
           showMsg("Task added!", "success");
           document.getElementById("desc").value = "";
           loadTasks();
+          fetch("https://ivk.app.n8n.cloud/webhook/4c90b4f7-ee30-434a-acd7-e5c07096e2f3", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskdesc: desc, duedate: due }),
+          }).catch(() => {});
         } else {
           showMsg("Failed to add task.", "error");
         }
