@@ -3,12 +3,15 @@ import sqlite3
 import json
 import threading
 from datetime import datetime
-from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_from_directory
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 WEBHOOK_URL = os.environ["WEBHOOK_URL"]
