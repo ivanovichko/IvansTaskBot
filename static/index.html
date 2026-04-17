@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ivan's Task Manager</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--tg-theme-bg-color, #fff);
+      color: var(--tg-theme-text-color, #222);
+      padding: 16px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 20px; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 24px 0 12px; }
+
+    .card {
+      background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 6px; opacity: .7; text-transform: uppercase; letter-spacing: .05em; }
+
+    textarea, input[type="date"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid transparent;
+      border-radius: 8px;
+      background: var(--tg-theme-bg-color, #fff);
+      color: var(--tg-theme-text-color, #222);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    textarea { resize: vertical; min-height: 80px; margin-bottom: 12px; }
+    textarea:focus, input[type="date"]:focus { border-color: var(--tg-theme-button-color, #2481cc); }
+
+    button {
+      display: block;
+      width: 100%;
+      margin-top: 14px;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: var(--tg-theme-button-color, #2481cc);
+      color: var(--tg-theme-button-text-color, #fff);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    button:active { opacity: .75; }
+    button:disabled { opacity: .5; cursor: default; }
+
+    #msg { margin-top: 10px; font-size: .9rem; min-height: 20px; text-align: center; }
+    .success { color: #28a745; }
+    .error   { color: #dc3545; }
+
+    #task-list { list-style: none; }
+    #task-list li {
+      background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .task-desc { font-weight: 500; margin-bottom: 4px; }
+    .task-date { font-size: .8rem; opacity: .6; }
+    .empty { opacity: .5; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <h1>Ivan's Tasks</h1>
+
+  <div class="card">
+    <label for="desc">Task description</label>
+    <textarea id="desc" placeholder="What needs to be done?"></textarea>
+
+    <label for="due">Due date</label>
+    <input type="date" id="due" />
+
+    <button id="submit-btn" onclick="submitTask()">Add Task</button>
+    <div id="msg"></div>
+  </div>
+
+  <h2>All Tasks</h2>
+  <ul id="task-list"><li class="empty">Loading…</li></ul>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) tg.ready();
+
+    // Set today as default date
+    const today = new Date().toISOString().split("T")[0];
+    document.getElementById("due").value = today;
+
+    async function loadTasks() {
+      const list = document.getElementById("task-list");
+      try {
+        const res = await fetch("/api/tasks");
+        const tasks = await res.json();
+        if (!tasks.length) {
+          list.innerHTML = '<li class="empty">No tasks yet.</li>';
+          return;
+        }
+        list.innerHTML = tasks.map(t => `
+          <li>
+            <div class="task-desc">${escHtml(t.description)}</div>
+            <div class="task-date">Due: ${t.due_date}</div>
+          </li>
+        `).join("");
+      } catch {
+        list.innerHTML = '<li class="empty">Failed to load tasks.</li>';
+      }
+    }
+
+    async function submitTask() {
+      const desc = document.getElementById("desc").value.trim();
+      const due  = document.getElementById("due").value;
+      const msg  = document.getElementById("msg");
+      const btn  = document.getElementById("submit-btn");
+
+      if (!desc) { showMsg("Please enter a description.", "error"); return; }
+      if (!due)  { showMsg("Please pick a due date.", "error"); return; }
+
+      btn.disabled = true;
+      try {
+        const res = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description: desc, due_date: due }),
+        });
+        if (res.ok) {
+          showMsg("Task added!", "success");
+          document.getElementById("desc").value = "";
+          loadTasks();
+        } else {
+          showMsg("Failed to add task.", "error");
+        }
+      } catch {
+        showMsg("Network error.", "error");
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function showMsg(text, type) {
+      const el = document.getElementById("msg");
+      el.textContent = text;
+      el.className = type;
+      setTimeout(() => { el.textContent = ""; el.className = ""; }, 3000);
+    }
+
+    function escHtml(s) {
+      return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    }
+
+    loadTasks();
+  </script>
+</body>
+</html>
